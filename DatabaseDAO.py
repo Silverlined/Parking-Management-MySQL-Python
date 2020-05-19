@@ -15,6 +15,7 @@ class DatabaseDAO:
                     user=config["username"],
                     passwd=config["password"],
                     db=config["database"],
+                    auth_plugin="mysql_native_password",
                 )
                 if self.connection_object.is_connected():
                     print("Connection: Successful.")

@@ -36,7 +36,6 @@ class ManagementPanel(QMainWindow):
         self.btn_home = QPushButton("Lot\nOverview")
         self.btn_add = QPushButton("Car\nRegistration")
         self.btn_manage = QPushButton("Manage\nMenu")
-        self.btn_history = QPushButton("History")
 
         menu_vertical_layout.setContentsMargins(0, 0, 0, 0)
         menu_vertical_layout.setSpacing(0)
@@ -49,20 +48,15 @@ class ManagementPanel(QMainWindow):
         self.btn_manage.setStyleSheet(
             "width:200px;height:160px;font-size:20px;background:orange;color:#fff;font-weight:bold;border:1px solid white"
         )
-        self.btn_history.setStyleSheet(
-            "width:200px;height:160px;font-size:20px;background:orange;color:#fff;font-weight:bold;border:1px solid white"
-        )
 
         self.btn_home.clicked.connect(self.show_overview_menu)
         self.btn_add.clicked.connect(self.show_add_menu)
         self.btn_manage.clicked.connect(self.show_manage_menu)
-        self.btn_history.clicked.connect(self.showHistory)
 
         menu_frame = QFrame()
         menu_vertical_layout.addWidget(self.btn_home)
         menu_vertical_layout.addWidget(self.btn_add)
         menu_vertical_layout.addWidget(self.btn_manage)
-        menu_vertical_layout.addWidget(self.btn_history)
         menu_vertical_layout.addStretch()
         menu_frame.setLayout(menu_vertical_layout)
         # menu_frame.setMinimumWidth(200)
@@ -80,26 +74,21 @@ class ManagementPanel(QMainWindow):
         self.vertical_3.setContentsMargins(0, 0, 0, 0)
         self.manage_menu()
 
-        self.vertical_4 = QVBoxLayout()
-        self.addHistoryPage()
         self.frame_1 = QFrame()
         self.frame_1.setMinimumWidth(self.width())
         self.frame_1.setMaximumWidth(self.width())
-        self.frame_1.setMaximumHeight(self.width())
-        self.frame_1.setMaximumHeight(self.width())
+        self.frame_1.setMinimumHeight(self.height())
+        self.frame_1.setMaximumHeight(self.height())
 
         self.frame_1.setLayout(self.vertical_1)
         self.frame_2 = QFrame()
         self.frame_2.setLayout(self.vertical_2)
         self.frame_3 = QFrame()
         self.frame_3.setLayout(self.vertical_3)
-        self.frame_4 = QFrame()
-        self.frame_4.setLayout(self.vertical_4)
 
         parent_vertical.addWidget(self.frame_1)
         parent_vertical.addWidget(self.frame_2)
         parent_vertical.addWidget(self.frame_3)
-        parent_vertical.addWidget(self.frame_4)
 
         layout_horizontal.addWidget(menu_frame)
         layout_horizontal.addLayout(parent_vertical)
@@ -113,7 +102,6 @@ class ManagementPanel(QMainWindow):
         self.frame_1.show()
         self.frame_2.hide()
         self.frame_3.hide()
-        self.frame_4.hide()
 
         self.setCentralWidget(widget)
 
@@ -127,13 +115,9 @@ class ManagementPanel(QMainWindow):
         self.btn_manage.setStyleSheet(
             "width:200px;height:160px;font-size:20px;background:orange;color:#fff;font-weight:bold;border:1px solid white"
         )
-        self.btn_history.setStyleSheet(
-            "width:200px;height:160px;font-size:20px;background:orange;color:#fff;font-weight:bold;border:1px solid white"
-        )
 
         self.frame_1.hide()
         self.frame_3.hide()
-        self.frame_4.hide()
         self.frame_2.show()
 
     def add_menu(self):
@@ -223,13 +207,9 @@ class ManagementPanel(QMainWindow):
         self.btn_manage.setStyleSheet(
             "width:200px;height:160px;font-size:20px;background:blue;color:#fff;font-weight:bold;border:1px solid white"
         )
-        self.btn_history.setStyleSheet(
-            "width:200px;height:160px;font-size:20px;background:orange;color:#fff;font-weight:bold;border:1px solid white"
-        )
 
         self.frame_1.hide()
         self.frame_2.hide()
-        self.frame_4.hide()
         self.frame_3.show()
         self.refresh_manage_menu()
 
@@ -323,13 +303,9 @@ class ManagementPanel(QMainWindow):
         self.btn_manage.setStyleSheet(
             "width:200px;height:160px;font-size:20px;background:orange;color:#fff;font-weight:bold;border:1px solid white"
         )
-        self.btn_history.setStyleSheet(
-            "width:200px;height:160px;font-size:20px;background:orange;color:#fff;font-weight:bold;border:1px solid white"
-        )
 
         self.frame_2.hide()
         self.frame_3.hide()
-        self.frame_4.hide()
         self.frame_1.show()
         self.refresh_overview_menu()
 
@@ -385,91 +361,6 @@ class ManagementPanel(QMainWindow):
 
                 self.gridLayout.addWidget(label, row, i)
                 i = i + 1
-
-    def showHistory(self):
-        self.btn_home.setStyleSheet(
-            "width:200px;height:160px;font-size:20px;background:orange;color:#fff;font-weight:bold;border:1px solid white"
-        )
-        self.btn_add.setStyleSheet(
-            "width:200px;height:160px;font-size:20px;background:orange;color:#fff;font-weight:bold;border:1px solid white"
-        )
-        self.btn_manage.setStyleSheet(
-            "width:200px;height:160px;font-size:20px;background:orange;color:#fff;font-weight:bold;border:1px solid white"
-        )
-        self.btn_history.setStyleSheet(
-            "width:200px;height:160px;font-size:20px;background:blue;color:#fff;font-weight:bold;border:1px solid white"
-        )
-
-        self.frame_1.hide()
-        self.frame_2.hide()
-        self.frame_3.hide()
-        self.frame_4.show()
-
-    def refreshHistory(self):
-        self.table1.clearContents()
-        # data = self.dbOperation.getAllVehicle()
-        index = 0
-        # self.table1.setRowCount(len(data))
-        self.table1.setColumnCount(7)
-        # for smalldata in data:
-        #     self.table1.setItem(index, 0, QTableWidgetItem(str(smalldata[0])))
-        #     self.table1.setItem(index, 1, QTableWidgetItem(str(smalldata[1])))
-        #     self.table1.setItem(index, 2, QTableWidgetItem(str(smalldata[6])))
-        #     self.table1.setItem(index, 3, QTableWidgetItem(str(smalldata[2])))
-        #     self.table1.setItem(index, 4, QTableWidgetItem(str(smalldata[7])))
-        #     self.table1.setItem(index, 5, QTableWidgetItem(str(smalldata[3])))
-        #     self.table1.setItem(index, 6, QTableWidgetItem(str(smalldata[4])))
-        #     index = index + 1
-
-    def addHistoryPage(self):
-        # data = self.dbOperation.getAllVehicle()
-        self.table1 = QTableWidget()
-        self.table1.resize(self.width(), self.height())
-        # self.table1.setRowCount(len(data))
-        self.table1.setStyleSheet("background:#fff")
-        self.table1.setColumnCount(7)
-
-        button = QPushButton("Refresh")
-        button.setStyleSheet(
-            "color:#fff;padding:8px 0px;font-size:20px;background:green;border:1px solid white"
-        )
-        button.clicked.connect(self.refreshHistory)
-        self.table1.horizontalHeader().setSectionResizeMode(
-            QHeaderView.ResizeToContents
-        )
-        self.table1.setHorizontalHeaderItem(0, QTableWidgetItem("ID"))
-        self.table1.setHorizontalHeaderItem(1, QTableWidgetItem("Name"))
-        self.table1.setHorizontalHeaderItem(2, QTableWidgetItem("VEHICLE No"))
-        self.table1.setHorizontalHeaderItem(3, QTableWidgetItem("MOBILE"))
-        self.table1.setHorizontalHeaderItem(4, QTableWidgetItem("VEHICLE TYPE"))
-        self.table1.setHorizontalHeaderItem(5, QTableWidgetItem("ENTRY TIME"))
-        self.table1.setHorizontalHeaderItem(6, QTableWidgetItem("EXIT TIME"))
-
-        index = 0
-        # for smalldata in data:
-        #     self.table1.setItem(index, 0, QTableWidgetItem(str(smalldata[0])))
-        #     self.table1.setItem(index, 1, QTableWidgetItem(str(smalldata[1])))
-        #     self.table1.setItem(index, 2, QTableWidgetItem(str(smalldata[6])))
-        #     self.table1.setItem(index, 3, QTableWidgetItem(str(smalldata[2])))
-        #     self.table1.setItem(index, 4, QTableWidgetItem(str(smalldata[7])))
-        #     self.table1.setItem(index, 5, QTableWidgetItem(str(smalldata[3])))
-        #     self.table1.setItem(index, 6, QTableWidgetItem(str(smalldata[4])))
-        #     index = index + 1
-
-        self.frame5 = QFrame()
-        self.layout1 = QVBoxLayout()
-        self.layout1.setContentsMargins(0, 0, 0, 0)
-        self.layout1.setSpacing(0)
-        self.layout1.addWidget(button)
-        self.layout1.addWidget(self.table1)
-        self.frame5.setLayout(self.layout1)
-        self.frame5.setContentsMargins(0, 0, 0, 0)
-        self.frame5.setMaximumWidth(self.width())
-        self.frame5.setMinimumWidth(self.width())
-        self.frame5.setMaximumHeight(self.height())
-        self.frame5.setMinimumHeight(self.height())
-        self.vertical_4.addWidget(self.frame5)
-        self.vertical_4.addStretch()
 
 
 ###############################################################
