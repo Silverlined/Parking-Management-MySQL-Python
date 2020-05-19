@@ -19,9 +19,9 @@ from PyQt5.QtWidgets import QHeaderView, qApp
 import PyQt5.QtGui
 import sys, time
 from mysql.connector import MySQLConnection, Error
-from uuid import uuid1
 from datetime import datetime
 from DatabaseDAO import DatabaseDAO
+from uuid import uuid1
 
 
 class ManagementPanel(QMainWindow):
@@ -248,7 +248,7 @@ class ManagementPanel(QMainWindow):
 
     def refresh_manage_menu(self):
         with DatabaseDAO("ticket_booth") as dao:
-            data = dao.get_currently_parked_cars()
+            data = dao.get_currently_parked_cars(with_owner=True)
             self.table.setRowCount(len(data))
         for index, row in enumerate(data):
             self.table.setItem(index, 0, QTableWidgetItem(str(row[0])))
@@ -347,9 +347,14 @@ class ManagementPanel(QMainWindow):
                 label = QPushButton("Space\n" + str(parking_space[0]))
 
                 if parking_space[1] == 0:  # Not occupied.
-                    label.setStyleSheet(
-                        "background-color:green;color:white;padding:5px;width:100px;height:100px;border:1px solid white;text-align:center;font-weight:bold"
-                    )
+                    if str(parking_space[2]) == "non_charging":
+                        label.setStyleSheet(
+                            "background-color:green;color:white;padding:5px;width:100px;height:100px;border:1px solid white;text-align:center;font-weight:bold"
+                        )
+                    else:
+                        label.setStyleSheet(
+                            "background-color:#a9c800;color:white;padding:5px;width:100px;height:100px;border:1px solid white;text-align:center;font-weight:bold"
+                        )
                 else:
                     label.setStyleSheet(
                         "background-color:red;color:white;padding:5px;width:100px;height:100px;border:1px solid white;text-align:center;font-weight:bold"

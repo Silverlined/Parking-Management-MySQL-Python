@@ -102,9 +102,9 @@ class RegistrationWindow(QWidget):
         student_employee_code = self.input_student_employee_code.text()
         discount_rate = 0
         if customer_type == "RUG":
-            discount_rate = Decimal(20)
+            discount_rate = Decimal(45)
         elif customer_type == "HANZE":
-            discount_rate = Decimal(25)
+            discount_rate = Decimal(50)
         first_name = self.input_first_name.text()
         surname = self.input_surname.text()
         tel_number = self.input_tel_number.text()

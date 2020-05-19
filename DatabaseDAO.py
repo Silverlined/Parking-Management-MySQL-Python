@@ -2,6 +2,7 @@ from json import load
 from mysql.connector import MySQLConnection, Error
 from collections import namedtuple
 from random import choice
+from uuid import UUID
 
 
 class DatabaseDAO:
@@ -108,22 +109,21 @@ class DatabaseDAO:
 
         cursor = self.connection_object.cursor()
         duplication_check_query = """SELECT EXISTS(SELECT license_plate FROM Car WHERE license_plate =%s)"""
-        insert_query = """INSERT IGNORE INTO Car (license_plate, owner_id, brand_name, fuel_type) VALUES(%s, %s, %s, %s)"""
+        insert_query = """INSERT INTO Car (license_plate, owner_id, brand_name, fuel_type) VALUES(%s, %s, %s, %s)"""
         try:
-            # cursor.execute(duplication_check_query, (args[0],))
-            # if all(cursor.fetchone()):
-            #     print(
-            #         "Unsuccessful: There is an already registered car with the entered license plate."
-            #     )
-            #     cursor.close()
-            #     return
-
-            cursor.execute(insert_query, args)
-            print(
-                cursor.rowcount,
-                "row/rows inserted successfully into Car table.",
-            )
-            self.connection_object.commit()
+            cursor.execute(duplication_check_query, (args[0],))
+            if all(cursor.fetchone()):
+                print(
+                    "Warning: There is an already registered car with the entered license plate."
+                )
+                cursor.close()
+            else:
+                cursor.execute(insert_query, args)
+                print(
+                    cursor.rowcount,
+                    "row/rows inserted successfully into Car table.",
+                )
+                self.connection_object.commit()
             cursor.close()
         except Error as err:
             self.connection_object.rollback()
@@ -177,7 +177,7 @@ class DatabaseDAO:
             print("No connection")
             return
         """ 
-        The parameter - args, must be a tuple which contains the necessary information for registration of a Car Owner:
+        The parameter - args, must be a tuple which contains the necessary information for a Car Record:
         args[0] - record_id
         args[1] - license_plate
         args[2] - space_id
@@ -225,7 +225,7 @@ class DatabaseDAO:
         finally:
             cursor.close()
 
-    def get_parking_lots_free_spaces(self):
+    def get_parking_spaces_per_lot(self, is_occupied_field=0):
         if self.connection_object is None:
             print("No connection")
             return
@@ -238,18 +238,24 @@ class DatabaseDAO:
                                             FROM ParkingLot pl 
                                                 INNER JOIN ParkingSpace ps 
                                                     ON pl.lot_id = ps.lot_id) pl_ps
-                                    WHERE pl_ps.is_occupied = 0
+                                    WHERE pl_ps.is_occupied = %s
                                 GROUP BY name
                             """
         try:
-            cursor.execute(select_query)
+            cursor.execute(select_query, (is_occupied_field,))
             rows = cursor.fetchall()
             result = []
             for index, row in enumerate(rows):
-                print(
-                    "Parking Lot - %s, has %d non-charging and %d charging, free spaces"
-                    % (row.name, row.non_charging, row.charging)
-                )
+                if is_occupied_field == 0:
+                    print(
+                        "Parking Lot - %s, has %d non-charging and %d charging, free spaces"
+                        % (row.name, row.non_charging, row.charging)
+                    )
+                else:
+                    print(
+                        "Parking Lot - %s, %d non-charging and %d charging are occupied"
+                        % (row.name, row.non_charging, row.charging)
+                    )
                 result.insert(index, [row.name, row.non_charging, row.charging])
             return result
         except Error as err:
@@ -283,23 +289,32 @@ class DatabaseDAO:
             cursor.close()
             return choice(free_spaces)
 
-    def get_currently_parked_cars(self):
+    def get_currently_parked_cars(self, with_owner=False):
         if self.connection_object is None:
             print("No connection")
             return
         checked_in_records = None
         cursor = self.connection_object.cursor()
-        select_query = """SELECT
-                            rc.license_plate, rc.brand_name, o.first_name, o.surname, rc.space_id, rc.check_in, o.discount_rate
-                        FROM
-                            (
-                            SELECT r.license_plate, c.brand_name, c.owner_id, r.space_id, r.check_in
+        if with_owner:
+            select_query = """SELECT
+                                rc.license_plate, rc.brand_name, o.first_name, o.surname, rc.space_id, rc.check_in, o.discount_rate
                             FROM
-                                CarRecord r
-                            INNER JOIN Car c 
-                                ON r.license_plate = c.license_plate AND r.check_out is NULL
-                        ) rc
-                        LEFT JOIN CarOwner o USING(owner_id)"""
+                                (
+                                SELECT r.license_plate, c.brand_name, c.owner_id, r.space_id, r.check_in
+                                FROM
+                                    CarRecord r
+                                INNER JOIN Car c 
+                                    ON r.license_plate = c.license_plate AND r.check_out is NULL
+                            ) rc
+                            LEFT JOIN CarOwner o USING(owner_id)"""
+        else:
+            select_query = """
+                                SELECT r.license_plate, c.brand_name, c.fuel_type
+                                FROM
+                                    CarRecord r
+                                INNER JOIN Car c 
+                                    ON r.license_plate = c.license_plate AND r.check_out is NULL
+                            """
         try:
             cursor.execute(select_query)
             checked_in_records = cursor.fetchall()
@@ -341,13 +356,106 @@ class DatabaseDAO:
         finally:
             cursor.close()
 
+    def get_user_invoice(self, args):
+        if self.connection_object is None:
+            print("No connection")
+            return
+        """ 
+        The parameter - args, must be a tuple which contains the necessary information:
+        args[0] - owner_id
+        args[1] - month
+        """
+
+        if type(args) is not tuple:
+            print("Invalid input, must be a tuple")
+            return
+        owner_id = args[0]
+        cursor = self.connection_object.cursor(named_tuple=True)
+        select_query = """SELECT
+                                    license_plate,
+                                    check_in,
+                                    check_out,
+                                    total_time,
+                                    total_time * ps.hourly_tariff AS parking_cost,
+                                    is_paid
+                                FROM
+                                    (
+                                    SELECT
+                                        co.license_plate,
+                                        r.check_in,
+                                        r.check_out,
+                                        ROUND(
+                                            (
+                                                TIME_TO_SEC(
+                                                    TIMEDIFF(r.check_out, r.check_in)
+                                                ) / 3600
+                                            ),
+                                            2
+                                        ) AS total_time,
+                                        r.is_paid,
+                                        r.space_id
+                                    FROM
+                                        (
+                                        SELECT
+                                            Car.license_plate,
+                                            CarOwner.owner_id,
+                                            CarOwner.first_name,
+                                            CarOwner.surname,
+                                            CarOwner.student_employee_code,
+                                            CarOwner.discount_rate,
+                                            CarOwner.payment_method
+                                        FROM
+                                            Car
+                                        INNER JOIN CarOwner ON Car.owner_id = CarOwner.owner_id AND CarOwner.owner_id = %s
+                                    ) co
+                                INNER JOIN CarRecord r ON co.license_plate = r.license_plate AND MONTH(r.check_in) = %s
+                                ) cor
+                                INNER JOIN ParkingSpace ps USING(space_id)"""
+        try:
+            cursor.execute(select_query, args)
+            rows = cursor.fetchall()
+            result = []
+            print("Invoice for owner: %s" % (owner_id))
+            for index, row in enumerate(rows):
+                print(
+                    "License Plate: %s, Check-in: %s, Check-out: %s, Total time: %4.2f, Cost: %4.2f"
+                    % (
+                        row.license_plate,
+                        row.check_in,
+                        row.check_out,
+                        row.total_time,
+                        row.parking_cost,
+                    )
+                )
+                result.insert(
+                    index,
+                    [
+                        owner_id,
+                        row.license_plate,
+                        row.check_in,
+                        row.check_out,
+                        row.total_time,
+                        row.parking_cost,
+                    ],
+                )
+            return result
+        except Error as err:
+            self.connection_object.rollback()
+            print("Error Code:", err.errno)
+            print("SQLSTATE:", err.sqlstate)
+            print("Message:", err.msg)
+        finally:
+            cursor.close()
+
     def get_parking_spaces(self):
         if self.connection_object is None:
             print("No connection")
             return
         parking_spaces = None
         cursor = self.connection_object.cursor()
-        select_query = """SELECT space_id, is_occupied FROM ParkingSpace"""
+        select_query = (
+            """SELECT space_id, is_occupied, space_type FROM ParkingSpace"""
+        )
         try:
             cursor.execute(select_query)
             parking_spaces = cursor.fetchall()
@@ -359,6 +467,110 @@ class DatabaseDAO:
         finally:
             cursor.close()
             return parking_spaces
+
+    def sensor_alert(self):
+        if self.connection_object is None:
+            print("No connection")
+            return
+        cursor = self.connection_object.cursor(named_tuple=True)
+        select_query = """SELECT COUNT(IF(is_occupied = 1, 1, NULL)) 'detected',
+                                COUNT(IF(check_out IS NULL, 1, NULL)) 'parked'
+                                    FROM (
+                                        SELECT r.check_out, ps.is_occupied 
+                                            FROM CarRecord r 
+                                                INNER JOIN ParkingSpace ps 
+                                                    USING(space_id)) r_ps
+                            """
+        try:
+            cursor.execute(select_query)
+            data = cursor.fetchone()
+            if data.detected != data.parked:
+                return True
+            else:
+                return False
+        except Error as err:
+            self.connection_object.rollback()
+            print("Error Code:", err.errno)
+            print("SQLSTATE:", err.sqlstate)
+            print("Message:", err.msg)
+        finally:
+            cursor.close()
+
+    def get_number_cars_group_by(self, grouped_by):
+        if self.connection_object is None:
+            print("No connection")
+            return
+        """ 
+        The parameter - grouped_by, must specify whether the function should return the amount of parked card per Hour, Day, Week, or Year:
+        grouped_by = ["hour", "day", "week", "year"]
+        """
+
+        if grouped_by == "hour":
+            select_query = """SELECT YEAR(check_in) AS year, MONTH(check_in) AS month, DAY(check_in) AS day, HOUR(check_in) AS hour, COUNT(*) AS n_cars 
+                                FROM CarRecord GROUP BY year, month, day, hour ORDER BY year, month, day, hour ASC"""
+        elif grouped_by == "day":
+            select_query = """SELECT YEAR(check_in) AS year, MONTH(check_in) AS month, DAY(check_in) AS day, COUNT(*) AS n_cars 
+                                FROM CarRecord GROUP BY year, month, day ORDER BY year, month, day ASC"""
+        elif grouped_by == "month":
+            select_query = """SELECT YEAR(check_in) AS year, MONTH(check_in) AS month, COUNT(*) AS n_cars 
+                                FROM CarRecord GROUP BY year, month ORDER BY year, month ASC"""
+        elif grouped_by == "year":
+            select_query = """SELECT YEAR(check_in) AS year, COUNT(*) AS n_cars 
+                                FROM CarRecord GROUP BY year ORDER BY year ASC"""
+
+        cursor = self.connection_object.cursor(named_tuple=True)
+        try:
+            cursor.execute(select_query)
+            rows = cursor.fetchall()
+            return rows
+        except Error as err:
+            print("Error Code:", err.errno)
+            print("SQLSTATE:", err.sqlstate)
+            print("Message:", err.msg)
+        finally:
+            cursor.close()
+
+    def get_cars_date_range(self, start_date, end_date):
+        if self.connection_object is None:
+            print("No connection")
+            return
+
+        select_query = """SELECT c.owner_id, c.license_plate, c.brand_name, c.fuel_type
+                            FROM
+                                Car c
+                            INNER JOIN CarRecord r ON c.license_plate = r.license_plate AND r.check_in >= %s AND r.check_in <= %s"""
+
+        cursor = self.connection_object.cursor(named_tuple=True)
+        args = (start_date, end_date)
+        try:
+            cursor.execute(select_query, args)
+            rows = cursor.fetchall()
+            return rows
+        except Error as err:
+            print("Error Code:", err.errno)
+            print("SQLSTATE:", err.sqlstate)
+            print("Message:", err.msg)
+        finally:
+            cursor.close()
+
+    def get_unpaid_records(self):
+        if self.connection_object is None:
+            print("No connection")
+            return
+
+        select_query = """SELECT * FROM CarRecord WHERE is_paid = 0"""
+
+        cursor = self.connection_object.cursor(named_tuple=True)
+        try:
+            cursor.execute(select_query)
+            rows = cursor.fetchall()
+            return rows
+        except Error as err:
+            print("Error Code:", err.errno)
+            print("SQLSTATE:", err.sqlstate)
+            print("Message:", err.msg)
+        finally:
+            cursor.close()
 
     def close(self):
         if (
